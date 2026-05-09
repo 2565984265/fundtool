@@ -1,37 +1,80 @@
 import { FundInfo } from '../types';
 
-const PROXY_URL = 'https://api.allorigins.win/get?url=';
+interface EastMoneyJsonp {
+  fundcode: string;
+  name: string;
+  jzrq: string;
+  dwjz: string;
+  gsz: string;
+  gszzl: string;
+  gztime: string;
+}
 
-function eastMoneyUrl(code: string): string {
-  return `https://fundgz.1234567.com.cn/js/${code}.js`;
+// Queue-based JSONP to handle multiple sequential requests safely
+let jsonpQueue: Array<(data: EastMoneyJsonp) => void> = [];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(window as any).jsonpgz = (data: EastMoneyJsonp) => {
+  const resolve = jsonpQueue.shift();
+  if (resolve) resolve(data);
+};
+
+function fetchJsonpSingle(url: string, timeout = 8000): Promise<EastMoneyJsonp> {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    // Add random query param to bypass cache
+    script.src = url + (url.includes('?') ? '&' : '?') + '_rt=' + Date.now();
+    script.async = true;
+
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('JSONP timeout'));
+    }, timeout);
+
+    function cleanup() {
+      clearTimeout(timer);
+      if (script.parentNode) script.parentNode.removeChild(script);
+      // Remove this request from queue if still pending
+      const idx = jsonpQueue.indexOf(resolve as (data: EastMoneyJsonp) => void);
+      if (idx >= 0) jsonpQueue.splice(idx, 1);
+    }
+
+    jsonpQueue.push((data: EastMoneyJsonp) => {
+      clearTimeout(timer);
+      if (script.parentNode) script.parentNode.removeChild(script);
+      resolve(data);
+    });
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error('JSONP load error'));
+    };
+
+    document.head.appendChild(script);
+  });
 }
 
 export async function fetchFundInfo(code: string): Promise<FundInfo | null> {
   try {
-    const url = eastMoneyUrl(code);
-    const proxy = `${PROXY_URL}${encodeURIComponent(url)}`;
-    const res = await fetch(proxy);
-    const data = await res.json();
-    const text: string = data.contents || '';
-    const match = text.match(/jsonpgz\((.*)\);?/);
-    if (!match) return null;
+    const url = `https://fundgz.1234567.com.cn/js/${code}.js`;
+    const data = await fetchJsonpSingle(url, 8000);
 
-    const json = JSON.parse(match[1]);
-    const netValue = parseFloat(json.dwjz || '0');
-    const estimateValue = parseFloat(json.gsz || '0');
-    const estimateChange = parseFloat(json.gszzl || '0');
+    const netValue = parseFloat(data.dwjz || '0');
+    const estimateValue = parseFloat(data.gsz || '0');
+    const estimateChange = parseFloat(data.gszzl || '0');
     // preNetValue is previous trading day's net value
     const preNetValue = estimateChange !== 0 && estimateValue > 0
       ? estimateValue / (1 + estimateChange / 100)
       : netValue;
+
     return {
-      code: json.fundcode,
-      name: json.name,
+      code: data.fundcode,
+      name: data.name,
       netValue,
       preNetValue,
-      netValueDate: json.jzrq || '',
+      netValueDate: data.jzrq || '',
       estimateValue,
-      estimateTime: json.gztime || '',
+      estimateTime: data.gztime || '',
       estimateChange,
     };
   } catch {
@@ -41,12 +84,13 @@ export async function fetchFundInfo(code: string): Promise<FundInfo | null> {
 
 export async function fetchFundHistory(code: string): Promise<{ date: string; value: number }[]> {
   try {
+    const PROXY_URL = 'https://api.allorigins.win/get?url=';
     const url = `https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code=${code}&page=1&per=30`;
     const proxy = `${PROXY_URL}${encodeURIComponent(url)}`;
     const res = await fetch(proxy);
     const data = await res.json();
     const text: string = data.contents || '';
-    const match = text.match(/content:\"(.*)\"}/);
+    const match = text.match(/content:"(.*)"}/);
     if (!match) return [];
 
     const parser = new DOMParser();
