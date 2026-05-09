@@ -95,9 +95,10 @@ export function useFundData() {
       valuationHistory: [],
     };
 
+    const holdingWithVal = collectValuation(holding, info);
     setFundInfos((prev) => ({ ...prev, [code]: info }));
     setData((prev) => ({
-      funds: [...prev.funds, holding],
+      funds: [...prev.funds, holdingWithVal],
     }));
     return true;
   }, []);

@@ -17,15 +17,22 @@ export async function fetchFundInfo(code: string): Promise<FundInfo | null> {
     if (!match) return null;
 
     const json = JSON.parse(match[1]);
+    const netValue = parseFloat(json.dwjz || '0');
+    const estimateValue = parseFloat(json.gsz || '0');
+    const estimateChange = parseFloat(json.gszzl || '0');
+    // preNetValue is previous trading day's net value
+    const preNetValue = estimateChange !== 0 && estimateValue > 0
+      ? estimateValue / (1 + estimateChange / 100)
+      : netValue;
     return {
       code: json.fundcode,
       name: json.name,
-      netValue: parseFloat(json.dwjz || '0'),
-      preNetValue: parseFloat(json.dwjz || '0'),
+      netValue,
+      preNetValue,
       netValueDate: json.jzrq || '',
-      estimateValue: parseFloat(json.gsz || '0'),
+      estimateValue,
       estimateTime: json.gztime || '',
-      estimateChange: parseFloat(json.gszzl || '0'),
+      estimateChange,
     };
   } catch {
     return null;

@@ -83,6 +83,11 @@ export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, 
                 {fund.name.charAt(0)}
               </span>
               <h3 className="font-bold text-gray-900">{fund.name} <span className="text-gray-400 font-normal">({fund.code})</span></h3>
+              {info ? (
+                <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">已更新</span>
+              ) : (
+                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">未获取</span>
+              )}
             </div>
             {stats && (
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
