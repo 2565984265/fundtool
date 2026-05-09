@@ -52,7 +52,7 @@ export default function GlobalTransactions({ funds, onRemoveTx }: Props) {
                     </td>
                     <td className="px-3 py-2">{tx.netValue.toFixed(4)}</td>
                     <td className="px-3 py-2">{tx.shares.toFixed(2)}</td>
-                    <td className="px-3 py-2">{tx.amount.toFixed(2)}</td>
+                    <td className={`px-3 py-2 ${tx.type === 'sell' ? 'text-green-600' : ''}`}>{tx.type === 'sell' ? '-' : ''}{tx.amount.toFixed(2)}</td>
                     <td className="px-3 py-2 text-gray-500">{tx.note}</td>
                     <td className="px-3 py-2">
                       {tx.type !== 'initial' && (

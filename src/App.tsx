@@ -14,6 +14,7 @@ function App() {
     lastUpdated,
     loading,
     refreshFundInfos,
+    refreshSingleFund,
     addFund,
     removeFund,
     addTransaction,
@@ -72,6 +73,7 @@ function App() {
                   onAddTx={addTransaction}
                   onRemoveTx={removeTransaction}
                   onUpdateSettings={updateHoldingSettings}
+                  onRefresh={() => refreshSingleFund(fund.code)}
                 />
               ))}
             </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FundHolding, FundInfo, Transaction } from '../types';
 import { calculateFundStats } from '../utils/calculate';
-import { ChevronDown, ChevronUp, Trash2, Plus, Settings2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Trash2, Plus, Settings2, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 interface Props {
@@ -11,12 +11,14 @@ interface Props {
   onAddTx: (code: string, tx: Omit<Transaction, 'id'>) => void;
   onRemoveTx: (code: string, txId: string) => void;
   onUpdateSettings: (code: string, startDate: string, avgCost: number, shares: number) => void;
+  onRefresh: () => void;
 }
 
-export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, onUpdateSettings }: Props) {
+export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, onUpdateSettings, onRefresh }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showTxForm, setShowTxForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
   const [txType, setTxType] = useState<'buy' | 'sell'>('buy');
   const [txNetValue, setTxNetValue] = useState('');
@@ -52,6 +54,12 @@ export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, 
     e.preventDefault();
     onUpdateSettings(fund.code, setStartDate, parseFloat(setAvgCost), parseFloat(setShares));
     setShowSettings(false);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await onRefresh();
+    setRefreshing(false);
   };
 
   const chartData = fund.valuationHistory.map((v) => ({
@@ -254,7 +262,7 @@ export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, 
                       </td>
                       <td className="px-3 py-2">{tx.netValue.toFixed(4)}</td>
                       <td className="px-3 py-2">{tx.shares.toFixed(2)}</td>
-                      <td className="px-3 py-2">{tx.amount.toFixed(2)}</td>
+                      <td className={`px-3 py-2 ${tx.type === 'sell' ? 'text-green-600' : ''}`}>{tx.type === 'sell' ? '-' : ''}{tx.amount.toFixed(2)}</td>
                       <td className="px-3 py-2 text-gray-500">{tx.note}</td>
                       <td className="px-3 py-2">
                         {tx.type !== 'initial' && (
@@ -270,7 +278,10 @@ export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, 
             </div>
           </div>
 
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={handleRefresh} disabled={refreshing} className="text-blue-500 hover:text-blue-600 text-sm flex items-center gap-1 transition disabled:opacity-50">
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> {refreshing ? '刷新中...' : '刷新此基金'}
+            </button>
             <button onClick={() => { if (confirm('确定删除该基金？所有相关数据将被清除。')) onRemove(fund.code); }} className="text-red-500 hover:text-red-600 text-sm flex items-center gap-1 transition">
               <Trash2 className="w-4 h-4" /> 删除基金
             </button>

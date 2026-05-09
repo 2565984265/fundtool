@@ -39,7 +39,7 @@ export function useFundData() {
         infos[fund.code] = info;
       }
     }
-    setFundInfos(infos);
+    setFundInfos((prev) => ({ ...prev, ...infos }));
     setLastUpdated(new Date().toLocaleString());
 
     // auto collect valuation history
@@ -53,6 +53,16 @@ export function useFundData() {
 
     setLoading(false);
   }, [data.funds, collectValuation]);
+
+  const refreshSingleFund = useCallback(async (code: string) => {
+    const info = await fetchFundInfo(code);
+    if (!info) return;
+    setFundInfos((prev) => ({ ...prev, [code]: info }));
+    setLastUpdated(new Date().toLocaleString());
+    setData((prev) => ({
+      funds: prev.funds.map((f) => (f.code === code ? collectValuation(f, info) : f)),
+    }));
+  }, [collectValuation]);
 
   useEffect(() => {
     if (!initialized.current) {
@@ -85,6 +95,7 @@ export function useFundData() {
       valuationHistory: [],
     };
 
+    setFundInfos((prev) => ({ ...prev, [code]: info }));
     setData((prev) => ({
       funds: [...prev.funds, holding],
     }));
@@ -158,6 +169,7 @@ export function useFundData() {
     lastUpdated,
     loading,
     refreshFundInfos,
+    refreshSingleFund,
     addFund,
     removeFund,
     addTransaction,
