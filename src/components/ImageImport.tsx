@@ -109,10 +109,15 @@ export default function ImageImport({ onImport }: Props) {
 
   const handleImportAll = async () => {
     const allFunds = items.flatMap((item) => item.funds);
-    const toImport = allFunds.filter((f) => f.code && f.shares > 0);
+    const toImport = allFunds.filter((f) => f.code && /^\d{6}$/.test(f.code) && f.shares > 0);
+    const invalid = allFunds.filter((f) => !f.code || !/^\d{6}$/.test(f.code) || f.shares <= 0);
     if (toImport.length === 0) {
-      alert('没有可导入的数据，请检查识别结果。');
+      alert('没有可导入的数据。请确保基金代码（6位数字）和持仓份额已正确填写。');
       return;
+    }
+    if (invalid.length > 0) {
+      const ok = confirm(`有 ${invalid.length} 条数据缺少基金代码或持仓份额，将跳过导入。是否继续导入 ${toImport.length} 条有效数据？`);
+      if (!ok) return;
     }
 
     setImporting(true);
@@ -214,46 +219,66 @@ export default function ImageImport({ onImport }: Props) {
                               ) : (
                                 <div className="space-y-2">
                                   {item.funds.map((fund, idx) => (
-                                    <div key={idx} className="bg-gray-50 rounded p-2 text-sm grid grid-cols-5 gap-2 items-center">
-                                      <div className="col-span-1">
-                                        <input
-                                          value={fund.code}
-                                          onChange={(e) => updateFund(item.id, idx, { code: e.target.value })}
-                                          className="w-full border rounded px-2 py-1 text-xs"
-                                          placeholder="代码"
-                                        />
+                                    <div key={idx} className="bg-gray-50 rounded p-2 text-sm">
+                                      <div className="grid grid-cols-6 gap-2 items-center">
+                                        <div className="col-span-1">
+                                          <label className="block text-[10px] text-gray-400 mb-0.5">基金代码 *</label>
+                                          <input
+                                            value={fund.code}
+                                            onChange={(e) => updateFund(item.id, idx, { code: e.target.value })}
+                                            className={`w-full border rounded px-2 py-1 text-xs ${!fund.code ? 'border-red-300 bg-red-50' : ''}`}
+                                            placeholder="000001"
+                                          />
+                                        </div>
+                                        <div className="col-span-2">
+                                          <label className="block text-[10px] text-gray-400 mb-0.5">基金名称</label>
+                                          <input
+                                            value={fund.name}
+                                            onChange={(e) => updateFund(item.id, idx, { name: e.target.value })}
+                                            className="w-full border rounded px-2 py-1 text-xs"
+                                            placeholder="名称"
+                                          />
+                                        </div>
+                                        <div className="col-span-1">
+                                          <label className="block text-[10px] text-gray-400 mb-0.5">持有金额</label>
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            value={fund.amount || ''}
+                                            readOnly
+                                            className="w-full border rounded px-2 py-1 text-xs bg-gray-100 text-gray-500"
+                                            placeholder="--"
+                                          />
+                                        </div>
+                                        <div className="col-span-1">
+                                          <label className="block text-[10px] text-gray-400 mb-0.5">持仓份数 *</label>
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            value={fund.shares || ''}
+                                            onChange={(e) => updateFund(item.id, idx, { shares: parseFloat(e.target.value) || 0 })}
+                                            className={`w-full border rounded px-2 py-1 text-xs ${!fund.shares ? 'border-red-300 bg-red-50' : ''}`}
+                                            placeholder="份数"
+                                          />
+                                        </div>
+                                        <div className="col-span-1">
+                                          <label className="block text-[10px] text-gray-400 mb-0.5">成本单价</label>
+                                          <input
+                                            type="number"
+                                            step="0.0001"
+                                            value={fund.avgCost || ''}
+                                            onChange={(e) => updateFund(item.id, idx, { avgCost: parseFloat(e.target.value) || 0 })}
+                                            className="w-full border rounded px-2 py-1 text-xs"
+                                            placeholder="成本"
+                                          />
+                                        </div>
                                       </div>
-                                      <div className="col-span-1">
-                                        <input
-                                          value={fund.name}
-                                          onChange={(e) => updateFund(item.id, idx, { name: e.target.value })}
-                                          className="w-full border rounded px-2 py-1 text-xs"
-                                          placeholder="名称"
-                                        />
-                                      </div>
-                                      <div className="col-span-1">
-                                        <input
-                                          type="number"
-                                          step="0.01"
-                                          value={fund.shares || ''}
-                                          onChange={(e) => updateFund(item.id, idx, { shares: parseFloat(e.target.value) || 0 })}
-                                          className="w-full border rounded px-2 py-1 text-xs"
-                                          placeholder="份数"
-                                        />
-                                      </div>
-                                      <div className="col-span-1">
-                                        <input
-                                          type="number"
-                                          step="0.0001"
-                                          value={fund.avgCost || ''}
-                                          onChange={(e) => updateFund(item.id, idx, { avgCost: parseFloat(e.target.value) || 0 })}
-                                          className="w-full border rounded px-2 py-1 text-xs"
-                                          placeholder="成本"
-                                        />
-                                      </div>
-                                      <div className="col-span-1 text-xs text-gray-400">
-                                        置信度 {Math.round(fund.confidence * 100)}%
-                                      </div>
+                                      {!fund.code && (
+                                        <p className="text-[10px] text-red-500 mt-1">⚠️ 截图中未识别到基金代码，请手动输入</p>
+                                      )}
+                                      {!fund.shares && (
+                                        <p className="text-[10px] text-red-500 mt-1">⚠️ 截图中未识别到持仓份额，请手动输入</p>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
