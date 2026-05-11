@@ -32,29 +32,26 @@ export default function ImageImport({ onImport }: Props) {
     return worker;
   }, []);
 
-  const processImage = async (file: File): Promise<PreviewItem> => {
-    const src = URL.createObjectURL(file);
-    const item: PreviewItem = {
-      id: Math.random().toString(36).substring(2, 8),
-      src,
-      text: '',
-      funds: [],
-      status: 'processing',
-      progress: 0,
-    };
+  const processImage = async (id: string, file: File) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status: 'processing' as const } : item))
+    );
 
     try {
       const worker = await getWorker();
       const ret = await worker.recognize(file as unknown as string);
-      item.text = ret.data.text;
-      item.funds = parseOcrText(ret.data.text);
-      item.status = 'done';
-      item.progress = 100;
+      const text = ret.data.text;
+      const funds = parseOcrText(text);
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, text, funds, status: 'done' as const, progress: 100 } : item
+        )
+      );
     } catch {
-      item.status = 'error';
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, status: 'error' as const } : item))
+      );
     }
-
-    return item;
   };
 
   const handleFiles = async (files: FileList | null) => {
@@ -64,29 +61,23 @@ export default function ImageImport({ onImport }: Props) {
 
     setImportResult(null);
 
-    // Add placeholder items
-    const placeholders: PreviewItem[] = imageFiles.map((file) => ({
-      id: Math.random().toString(36).substring(2, 8),
-      src: URL.createObjectURL(file),
-      text: '',
-      funds: [],
-      status: 'pending' as const,
-      progress: 0,
-    }));
+    // Add placeholder items with stable IDs and srcs
+    const placeholders: PreviewItem[] = imageFiles.map((file) => {
+      const id = Math.random().toString(36).substring(2, 8);
+      return {
+        id,
+        src: URL.createObjectURL(file),
+        text: '',
+        funds: [],
+        status: 'pending' as const,
+        progress: 0,
+      };
+    });
     setItems((prev) => [...prev, ...placeholders]);
 
-    // Process sequentially
+    // Process sequentially using the stable IDs
     for (let i = 0; i < imageFiles.length; i++) {
-      const result = await processImage(imageFiles[i]);
-      setItems((prev) => {
-        const idx = prev.findIndex((p) => p.src === result.src);
-        if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = result;
-          return next;
-        }
-        return prev;
-      });
+      await processImage(placeholders[i].id, imageFiles[i]);
     }
   };
 
