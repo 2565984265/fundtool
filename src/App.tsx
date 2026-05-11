@@ -4,6 +4,7 @@ import FundDetail from './components/FundDetail';
 import DataManager from './components/DataManager';
 import GlobalTransactions from './components/GlobalTransactions';
 import EmptyState from './components/EmptyState';
+import ImageImport from './components/ImageImport';
 import { useFundData } from './hooks/useFundData';
 import { RefreshCw, TrendingUp, Clock } from 'lucide-react';
 
@@ -54,7 +55,14 @@ function App() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        <AddFund onAdd={addFund} />
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="flex-1">
+            <AddFund onAdd={addFund} />
+          </div>
+          <div className="flex items-start pt-6">
+            <ImageImport onImport={addFund} />
+          </div>
+        </div>
 
         {data.funds.length === 0 ? (
           <EmptyState />
