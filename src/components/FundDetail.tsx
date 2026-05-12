@@ -12,9 +12,25 @@ interface Props {
   onRemoveTx: (code: string, txId: string) => void;
   onUpdateSettings: (code: string, startDate: string, avgCost: number, shares: number) => void;
   onRefresh: () => void;
+  batchMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (code: string) => void;
+  readOnly?: boolean;
 }
 
-export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, onUpdateSettings, onRefresh }: Props) {
+export default function FundDetail({
+  fund,
+  info,
+  onRemove,
+  onAddTx,
+  onRemoveTx,
+  onUpdateSettings,
+  onRefresh,
+  batchMode = false,
+  selected = false,
+  onToggleSelect,
+  readOnly = false,
+}: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showTxForm, setShowTxForm] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -75,14 +91,49 @@ export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, 
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
-      <div className="p-5 cursor-pointer hover:bg-gray-50 transition" onClick={() => setExpanded(!expanded)}>
+      <div
+        className="p-5 cursor-pointer hover:bg-gray-50 transition"
+        onClick={() => {
+          if (batchMode) {
+            onToggleSelect?.(fund.code);
+          } else {
+            setExpanded(!expanded);
+          }
+        }}
+      >
         <div className="flex justify-between items-start">
           <div className="flex-1">
             <div className="flex items-center gap-2">
+              {batchMode && (
+                <div
+                  className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition ${
+                    selected
+                      ? 'bg-blue-600 border-blue-600'
+                      : 'border-gray-300 bg-white'
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleSelect?.(fund.code);
+                  }}
+                >
+                  {selected && (
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+              )}
               <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
                 {fund.name.charAt(0)}
               </span>
-              <h3 className="font-bold text-gray-900">{fund.name} <span className="text-gray-400 font-normal">({fund.code})</span></h3>
+              <h3 className="font-bold text-gray-900">
+                {fund.name} <span className="text-gray-400 font-normal">({fund.code})</span>
+              </h3>
+              {fund.accountName && (
+                <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">
+                  {fund.accountName}
+                </span>
+              )}
               {info ? (
                 <span className="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">已更新</span>
               ) : (
@@ -96,7 +147,7 @@ export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, 
                 <span>成本 ¥{fund.avgCost.toFixed(4)}</span>
                 <span>市值 ¥{stats.marketValue.toFixed(2)}</span>
                 <span className={stats.todayProfit >= 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>
-                  今日 {stats.todayProfit >= 0 ? '+' : ''}{stats.todayProfit.toFixed(2)} ({(stats.todayProfitRate * 100).toFixed(2)}%)
+                  今日预估 {stats.todayProfit >= 0 ? '+' : ''}{stats.todayProfit.toFixed(2)} ({(stats.todayProfitRate * 100).toFixed(2)}%)
                 </span>
               </div>
             )}
@@ -112,12 +163,14 @@ export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, 
                 </div>
               </div>
             )}
-            {expanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+            {!batchMode && (
+              expanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />
+            )}
           </div>
         </div>
       </div>
 
-      {expanded && (
+      {expanded && !batchMode && (
         <div className="border-t border-gray-100 px-5 pb-5">
           {info && (
             <div className="py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -125,9 +178,9 @@ export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, 
                 <h4 className="font-bold text-sm mb-3 text-gray-800">📈 基金实时估值</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between"><span className="text-gray-500">前期净值</span><span>{info.preNetValue.toFixed(4)} ({info.netValueDate})</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">最新估值</span><span className={info.estimateChange && info.estimateChange >= 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>{info.estimateValue?.toFixed(4)} ({info.estimateTime})</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">当日涨跌</span><span className={info.estimateChange && info.estimateChange >= 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>{info.estimateChange}%</span></div>
-                  <div className="flex justify-between"><span className="text-gray-500">当前净值</span><span className="font-medium">{info.netValue.toFixed(4)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">最新估值</span><span className={info.estimateChange && info.estimateChange >= 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>{info.estimateValue ? info.estimateValue.toFixed(4) : <span className="text-gray-400">--</span>} ({info.estimateTime || '--'})</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">当日涨跌</span><span className={info.estimateChange && info.estimateChange >= 0 ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>{info.estimateChange !== undefined ? info.estimateChange + '%' : <span className="text-gray-400">--</span>}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500">单位净值</span><span className="font-medium">{info.netValue.toFixed(4)}</span></div>
                 </div>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
@@ -144,28 +197,30 @@ export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, 
           )}
 
           {/* 持仓设置 */}
-          <div className="mb-4">
-            <button onClick={() => setShowSettings(!showSettings)} className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 mb-2">
-              <Settings2 className="w-4 h-4" /> 持仓设置
-            </button>
-            {showSettings && (
-              <form onSubmit={handleSaveSettings} className="bg-gray-50 rounded-lg p-4 flex flex-wrap gap-3 items-end">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">起始日期</label>
-                  <input type="date" value={setStartDate} onChange={(e) => setSetStartDate(e.target.value)} className="border rounded px-2 py-1 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">平均建仓成本（元）</label>
-                  <input type="number" step="0.0001" value={setAvgCost} onChange={(e) => setSetAvgCost(e.target.value)} className="border rounded px-2 py-1 text-sm w-28" />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">持仓份数</label>
-                  <input type="number" step="0.01" value={setShares} onChange={(e) => setSetShares(e.target.value)} className="border rounded px-2 py-1 text-sm w-28" />
-                </div>
-                <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">保存</button>
-              </form>
-            )}
-          </div>
+          {!readOnly && (
+            <div className="mb-4">
+              <button onClick={() => setShowSettings(!showSettings)} className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 mb-2">
+                <Settings2 className="w-4 h-4" /> 持仓设置
+              </button>
+              {showSettings && (
+                <form onSubmit={handleSaveSettings} className="bg-gray-50 rounded-lg p-4 flex flex-wrap gap-3 items-end">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">起始日期</label>
+                    <input type="date" value={setStartDate} onChange={(e) => setSetStartDate(e.target.value)} className="border rounded px-2 py-1 text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">平均建仓成本（元）</label>
+                    <input type="number" step="0.0001" value={setAvgCost} onChange={(e) => setSetAvgCost(e.target.value)} className="border rounded px-2 py-1 text-sm w-28" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">持仓份数</label>
+                    <input type="number" step="0.01" value={setShares} onChange={(e) => setSetShares(e.target.value)} className="border rounded px-2 py-1 text-sm w-28" />
+                  </div>
+                  <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">保存</button>
+                </form>
+              )}
+            </div>
+          )}
 
           {/* 估值趋势图 */}
           {chartData.length > 1 && (
@@ -205,91 +260,97 @@ export default function FundDetail({ fund, info, onRemove, onAddTx, onRemoveTx, 
           )}
 
           {/* 交易记录 */}
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="font-bold text-sm text-gray-800">💱 交易记录</h4>
-              <button onClick={() => setShowTxForm(!showTxForm)} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
-                <Plus className="w-4 h-4" /> 添加记录
-              </button>
-            </div>
-            <p className="text-xs text-orange-500 mb-2">**重要提示：** 请务必按照当前基金实际买入卖出的时间顺序添加记录（先发生的交易先添加），否则可能会导致收益计算错误！</p>
+          {!readOnly && (
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-bold text-sm text-gray-800">💱 交易记录</h4>
+                <button onClick={() => setShowTxForm(!showTxForm)} className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1">
+                  <Plus className="w-4 h-4" /> 添加记录
+                </button>
+              </div>
+              <p className="text-xs text-orange-500 mb-2">**重要提示：** 请务必按照当前基金实际买入卖出的时间顺序添加记录（先发生的交易先添加），否则可能会导致收益计算错误！</p>
 
-            {showTxForm && (
-              <form onSubmit={handleAddTx} className="bg-gray-50 rounded-lg p-4 mb-3 flex flex-wrap gap-3 items-end">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">交易日期 *</label>
-                  <input type="date" value={txDate} onChange={(e) => setTxDate(e.target.value)} className="border rounded px-2 py-1 text-sm" required />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">交易类型</label>
-                  <select value={txType} onChange={(e) => setTxType(e.target.value as 'buy' | 'sell')} className="border rounded px-2 py-1 text-sm">
-                    <option value="buy">买入</option>
-                    <option value="sell">卖出</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">净值</label>
-                  <input type="number" step="0.0001" value={txNetValue} onChange={(e) => setTxNetValue(e.target.value)} className="border rounded px-2 py-1 text-sm w-24" required />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">份数</label>
-                  <input type="number" step="0.01" value={txShares} onChange={(e) => setTxShares(e.target.value)} className="border rounded px-2 py-1 text-sm w-24" required />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">投资笔记</label>
-                  <input value={txNote} onChange={(e) => setTxNote(e.target.value)} className="border rounded px-2 py-1 text-sm w-32" />
-                </div>
-                <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">保存</button>
-              </form>
-            )}
+              {showTxForm && (
+                <form onSubmit={handleAddTx} className="bg-gray-50 rounded-lg p-4 mb-3 flex flex-wrap gap-3 items-end">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">交易日期 *</label>
+                    <input type="date" value={txDate} onChange={(e) => setTxDate(e.target.value)} className="border rounded px-2 py-1 text-sm" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">交易类型</label>
+                    <select value={txType} onChange={(e) => setTxType(e.target.value as 'buy' | 'sell')} className="border rounded px-2 py-1 text-sm">
+                      <option value="buy">买入</option>
+                      <option value="sell">卖出</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">净值</label>
+                    <input type="number" step="0.0001" value={txNetValue} onChange={(e) => setTxNetValue(e.target.value)} className="border rounded px-2 py-1 text-sm w-24" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">份数</label>
+                    <input type="number" step="0.01" value={txShares} onChange={(e) => setTxShares(e.target.value)} className="border rounded px-2 py-1 text-sm w-24" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">投资笔记</label>
+                    <input value={txNote} onChange={(e) => setTxNote(e.target.value)} className="border rounded px-2 py-1 text-sm w-32" />
+                  </div>
+                  <button type="submit" className="bg-blue-600 text-white px-3 py-1 rounded text-sm">保存</button>
+                </form>
+              )}
 
-            <div className="overflow-x-auto rounded-lg border border-gray-100">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-gray-500">
-                  <tr>
-                    <th className="text-left px-3 py-2">日期</th>
-                    <th className="text-left px-3 py-2">类型</th>
-                    <th className="text-left px-3 py-2">净值</th>
-                    <th className="text-left px-3 py-2">份数</th>
-                    <th className="text-left px-3 py-2">金额</th>
-                    <th className="text-left px-3 py-2">投资笔记</th>
-                    <th className="px-3 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {fund.transactions.map((tx) => (
-                    <tr key={tx.id} className="border-t border-gray-100 hover:bg-gray-50">
-                      <td className="px-3 py-2">{tx.date}</td>
-                      <td className="px-3 py-2">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${tx.type === 'buy' || tx.type === 'initial' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                          {tx.type === 'initial' ? '初始持仓' : tx.type === 'buy' ? '买入' : '卖出'}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">{tx.netValue.toFixed(4)}</td>
-                      <td className="px-3 py-2">{tx.shares.toFixed(2)}</td>
-                      <td className={`px-3 py-2 ${tx.type === 'sell' ? 'text-green-600' : ''}`}>{tx.type === 'sell' ? '-' : ''}{tx.amount.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-gray-500">{tx.note}</td>
-                      <td className="px-3 py-2">
-                        {tx.type !== 'initial' && (
-                          <button onClick={() => onRemoveTx(fund.code, tx.id)} className="text-gray-400 hover:text-red-500 transition">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </td>
+              <div className="overflow-x-auto rounded-lg border border-gray-100">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-500">
+                    <tr>
+                      <th className="text-left px-3 py-2">日期</th>
+                      <th className="text-left px-3 py-2">类型</th>
+                      <th className="text-left px-3 py-2">净值</th>
+                      <th className="text-left px-3 py-2">份数</th>
+                      <th className="text-left px-3 py-2">金额</th>
+                      <th className="text-left px-3 py-2">投资笔记</th>
+                      <th className="px-3 py-2"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {fund.transactions.map((tx) => (
+                      <tr key={tx.id} className="border-t border-gray-100 hover:bg-gray-50">
+                        <td className="px-3 py-2">{tx.date}</td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${tx.type === 'buy' || tx.type === 'initial' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                            {tx.type === 'initial' ? '初始持仓' : tx.type === 'buy' ? '买入' : '卖出'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">{tx.netValue.toFixed(4)}</td>
+                        <td className="px-3 py-2">{tx.shares.toFixed(2)}</td>
+                        <td className={`px-3 py-2 ${tx.type === 'sell' ? 'text-green-600' : ''}`}>{tx.type === 'sell' ? '-' : ''}{tx.amount.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-gray-500">{tx.note}</td>
+                        <td className="px-3 py-2">
+                          {tx.type !== 'initial' && (
+                            <button onClick={() => onRemoveTx(fund.code, tx.id)} className="text-gray-400 hover:text-red-500 transition">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
-            <button onClick={handleRefresh} disabled={refreshing} className="text-blue-500 hover:text-blue-600 text-sm flex items-center gap-1 transition disabled:opacity-50">
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> {refreshing ? '刷新中...' : '刷新此基金'}
-            </button>
-            <button onClick={() => { if (confirm('确定删除该基金？所有相关数据将被清除。')) onRemove(fund.code); }} className="text-red-500 hover:text-red-600 text-sm flex items-center gap-1 transition">
-              <Trash2 className="w-4 h-4" /> 删除基金
-            </button>
+            {!readOnly && (
+              <>
+                <button onClick={handleRefresh} disabled={refreshing} className="text-blue-500 hover:text-blue-600 text-sm flex items-center gap-1 transition disabled:opacity-50">
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> {refreshing ? '刷新中...' : '刷新此基金'}
+                </button>
+                <button onClick={() => { if (confirm('确定删除该基金？所有相关数据将被清除。')) onRemove(fund.code); }} className="text-red-500 hover:text-red-600 text-sm flex items-center gap-1 transition">
+                  <Trash2 className="w-4 h-4" /> 删除基金
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

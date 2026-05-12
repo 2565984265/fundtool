@@ -17,27 +17,24 @@ function isFundName(text: string): boolean {
 }
 
 function cleanNumber(text: string): number {
-  // Remove commas, spaces, and other non-numeric chars except dot and minus
   const cleaned = text.replace(/,/g, '').replace(/\s+/g, '').replace(/[^\d.\-]/g, '');
   const val = parseFloat(cleaned);
   return isNaN(val) ? 0 : val;
 }
 
 function extractName(text: string): string {
-  // Remove tags like "基金", "投资增值", "金选" etc.
   return text
     .replace(/基金/g, '')
     .replace(/投资增值/g, '')
     .replace(/金选/g, '')
     .replace(/指数基金/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/\s+/g, '')
     .trim();
 }
 
 /**
  * Parse OCR text to extract fund holdings information.
  * Supports Alipay, Tiantian Fund, brokerage apps, etc.
- * Handles cases where fund code is not shown (like Alipay screenshots).
  */
 export function parseOcrText(text: string): ParsedFund[] {
   const funds: ParsedFund[] = [];
@@ -49,7 +46,7 @@ export function parseOcrText(text: string): ParsedFund[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Strategy 1: Find 6-digit fund codes (traditional mode)
+    // Strategy 1: Find 6-digit fund codes
     const codeMatch = line.match(/\b(\d{6})\b/);
     if (codeMatch) {
       const code = codeMatch[1];
@@ -83,8 +80,7 @@ export function parseOcrText(text: string): ParsedFund[] {
         }
 
         if (!amount) {
-          const amountMatch = searchLine.match(/(?:金额|市值|资产|持有金额)[:：]?\s*([\d,]+(?:\.\d+)?)/) ||
-                              searchLine.match(/(?:持有|金额)\s*([\d,]+(?:\.\d+)?)/);
+          const amountMatch = searchLine.match(/(?:金额|市值|资产|持有金额)[:：]?\s*([\d,]+(?:\.\d+)?)/);
           if (amountMatch) amount = cleanNumber(amountMatch[1]);
         }
       }
@@ -95,19 +91,15 @@ export function parseOcrText(text: string): ParsedFund[] {
     }
 
     // Strategy 2: Find fund names without codes (Alipay mode)
-    // Look for lines that look like fund names and have "基金" tag nearby
     if (isFundName(line)) {
       const name = extractName(line);
       if (funds.some((f) => f.name === name)) continue;
 
-      // Check next few lines for numeric data
       let amount = 0;
       const searchRange = lines.slice(i + 1, Math.min(lines.length, i + 5));
 
       for (const searchLine of searchRange) {
-        // Skip percentage lines
         if (searchLine.includes('%')) continue;
-        // Look for amount-like numbers (e.g. 1880.50, 3,641.46)
         const numMatch = searchLine.match(/([\d,]+(?:\.\d{1,2})?)/);
         if (numMatch) {
           const val = cleanNumber(numMatch[1]);

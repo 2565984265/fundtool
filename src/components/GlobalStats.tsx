@@ -1,6 +1,6 @@
 import { FundHolding, FundInfo } from '../types';
 import { calculateFundStats } from '../utils/calculate';
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, CalendarDays, BarChart4 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, CalendarDays, BarChart4, Loader2 } from 'lucide-react';
 
 interface Props {
   funds: FundHolding[];
@@ -28,10 +28,24 @@ export default function GlobalStats({ funds, fundInfos }: Props) {
   const totalProfit = totalMarket - totalCost;
   const totalProfitRate = totalCost > 0 ? totalProfit / totalCost : 0;
   const avgHoldingDays = count > 0 ? Math.round(totalHoldingDays / count) : 0;
+  const missingCount = funds.length - count;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-      <h2 className="text-lg font-bold mb-4 text-gray-800">📊 全局统计概览</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-bold text-gray-800">📊 全局统计概览</h2>
+        {missingCount > 0 && (
+          <div className="flex items-center gap-1.5 text-xs text-orange-500 bg-orange-50 px-3 py-1 rounded-full">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            数据更新中 ({count}/{funds.length} 只基金已获取)
+          </div>
+        )}
+        {missingCount === 0 && funds.length > 0 && (
+          <span className="text-xs text-green-600 bg-green-50 px-3 py-1 rounded-full">
+            ✅ 所有基金数据已更新
+          </span>
+        )}
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           icon={<PiggyBank className="w-5 h-5 text-blue-500" />}
@@ -52,7 +66,7 @@ export default function GlobalStats({ funds, fundInfos }: Props) {
         />
         <StatCard
           icon={totalTodayProfit >= 0 ? <TrendingUp className="w-5 h-5 text-red-500" /> : <TrendingDown className="w-5 h-5 text-green-500" />}
-          label="今日收益"
+          label="今日预估"
           value={`${totalTodayProfit >= 0 ? '+' : ''}${totalTodayProfit.toFixed(2)}`}
           color={totalTodayProfit >= 0 ? 'text-red-600' : 'text-green-600'}
         />

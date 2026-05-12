@@ -32,3 +32,7 @@ lerna-debug.log*
 *.sw?
 dist/
 *.traineddata
+*.traineddata.gz
+public/tessdata/
+public/tesseract*
+public/worker.min.js

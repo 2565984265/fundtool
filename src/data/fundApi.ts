@@ -22,8 +22,10 @@ let jsonpQueue: Array<(data: EastMoneyJsonp) => void> = [];
 function fetchJsonpSingle(url: string, timeout = 8000): Promise<EastMoneyJsonp> {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    // Add random query param to bypass cache
-    script.src = url + (url.includes('?') ? '&' : '?') + '_rt=' + Date.now();
+    // Use daily cache key: same URL within a day to leverage browser cache,
+    // different URL across days to force fresh fetch for new net values
+    const dailyKey = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+    script.src = url + '?_d=' + dailyKey;
     script.async = true;
 
     const timer = setTimeout(() => {
@@ -59,13 +61,22 @@ export async function fetchFundInfo(code: string): Promise<FundInfo | null> {
     const url = `https://fundgz.1234567.com.cn/js/${code}.js`;
     const data = await fetchJsonpSingle(url, 8000);
 
-    const netValue = parseFloat(data.dwjz || '0');
-    const estimateValue = parseFloat(data.gsz || '0');
-    const estimateChange = parseFloat(data.gszzl || '0');
-    // preNetValue is previous trading day's net value
-    const preNetValue = estimateChange !== 0 && estimateValue > 0
-      ? estimateValue / (1 + estimateChange / 100)
-      : netValue;
+    const dwjz = parseFloat(data.dwjz || '0');
+    const gsz = parseFloat(data.gsz || '0');
+    const gszzlRaw = data.gszzl || '0';
+    const gszzl = parseFloat(gszzlRaw);
+
+    // dwjz = confirmed net value (T-1 or T day confirmed net value)
+    // gsz = today's estimated net value (real-time during trading hours)
+    const netValue = dwjz > 0 ? dwjz : gsz;
+    // Pre-net value = previous day's confirmed value, reverse-calculated from estimate
+    // when both estimate value and change are available
+    const preNetValue = (gsz > 0 && !isNaN(gszzl) && gszzl !== 0)
+      ? gsz / (1 + gszzl / 100)
+      : (dwjz > 0 ? dwjz : netValue);
+    const hasEstimate = gsz > 0 && !isNaN(gszzl);
+    const estimateValue = hasEstimate ? gsz : undefined;
+    const estimateChange = hasEstimate && gszzl !== 0 ? gszzl : undefined;
 
     return {
       code: data.fundcode,

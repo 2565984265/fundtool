@@ -13,7 +13,11 @@ export interface FundStats {
 
 export function calculateFundStats(holding: FundHolding, info: FundInfo): FundStats {
   const totalCost = holding.totalCost;
-  const marketValue = holding.shares * info.netValue;
+
+  // For cumulative P&L, use cached confirmed net value to ensure stability across refreshes.
+  // Fallback to real-time API value only on first fetch (before cache is established).
+  const confirmedValue = holding.lastNetValue ?? info.netValue;
+  const marketValue = holding.shares * confirmedValue;
   const totalProfit = marketValue - totalCost;
   const totalProfitRate = totalCost > 0 ? totalProfit / totalCost : 0;
 
@@ -25,9 +29,11 @@ export function calculateFundStats(holding: FundHolding, info: FundInfo): FundSt
     ? Math.pow(1 + totalProfitRate, 365 / holdingDays) - 1
     : 0;
 
-  const preValue = info.preNetValue || info.netValue;
-  const todayProfit = holding.shares * (info.netValue - preValue);
-  const todayProfitRate = preValue > 0 ? (info.netValue - preValue) / preValue : 0;
+  // Today's estimated P&L uses real-time estimate value (gsz) vs confirmed net value (dwjz)
+  const apiConfirmed = info.netValue;
+  const estimateValue = info.estimateValue ?? apiConfirmed;
+  const todayProfit = holding.shares * (estimateValue - apiConfirmed);
+  const todayProfitRate = apiConfirmed > 0 ? (estimateValue - apiConfirmed) / apiConfirmed : 0;
 
   return {
     totalCost,
