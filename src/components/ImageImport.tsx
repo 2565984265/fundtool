@@ -3,7 +3,6 @@ import { createWorker } from 'tesseract.js';
 import { Upload, X, ImagePlus, Loader2, CheckCircle, AlertCircle, Search } from 'lucide-react';
 import { parseOcrText, ParsedFund } from '../utils/ocrParser';
 import { searchFundByName, searchFundCandidates } from '../data/fundSearchApi';
-import { fetchFundInfo } from '../data/fundApi';
 import type { FundListItem } from '../data/fundSearchApi';
 
 interface Props {
@@ -207,20 +206,24 @@ export default function ImageImport({ onImport, existingCodes = new Set() }: Pro
     let failed = 0;
     const startDate = importDate;
 
+    // Validate all funds have required fields before importing
+    const invalidFunds = toImport.filter((f) => f.shares <= 0 || f.avgCost <= 0);
+    if (invalidFunds.length > 0) {
+      alert(`有 ${invalidFunds.length} 只基金的持仓份数或成本单价为空，请补充后重试。\n\n提示：若截图中未显示成本价，可通过「持仓设置」在导入后手动修改，或手动输入买入时的净值。`);
+      setImporting(false);
+      return;
+    }
+
     for (const fund of toImport) {
       let shares = fund.shares;
       let avgCost = fund.avgCost;
 
-      // If no shares/cost but has amount, fetch current net value and derive shares
-      if ((shares <= 0 || avgCost <= 0) && fund.amount > 0) {
-        const info = await fetchFundInfo(fund.code);
-        if (info && info.netValue > 0) {
-          shares = parseFloat((fund.amount / info.netValue).toFixed(2));
-          avgCost = info.netValue;
-        }
+      // Only derive shares from amount if shares is missing; NEVER auto-fill avgCost with current net value
+      // because that would make totalProfit = 0 (cost = current value).
+      if (shares <= 0 && fund.amount > 0 && avgCost > 0) {
+        shares = parseFloat((fund.amount / avgCost).toFixed(2));
       }
 
-      // Fallback defaults
       if (shares <= 0) shares = 1;
       if (avgCost <= 0) avgCost = 1;
 
@@ -391,6 +394,11 @@ export default function ImageImport({ onImport, existingCodes = new Set() }: Pro
                                       {fund.code && existingCodes.has(fund.code) && (
                                         <p className="text-[10px] text-blue-500 mt-1">
                                           🔄 将覆盖当前持仓
+                                        </p>
+                                      )}
+                                      {(fund.shares <= 0 || fund.avgCost <= 0) && (
+                                        <p className="text-[10px] text-red-500 mt-1">
+                                          ⚠️ 份数或成本单价为空，请手动补充（成本价建议填写买入时的净值）
                                         </p>
                                       )}
                                     </div>

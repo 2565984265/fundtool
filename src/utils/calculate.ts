@@ -15,8 +15,10 @@ export function calculateFundStats(holding: FundHolding, info: FundInfo): FundSt
   const totalCost = holding.totalCost;
 
   // For cumulative P&L, use cached confirmed net value to ensure stability across refreshes.
-  // Fallback to real-time API value only on first fetch (before cache is established).
-  const confirmedValue = holding.lastNetValue ?? info.netValue;
+  // Fallback to real-time API value only on first fetch (before cache is established)
+  // or when cached value is invalid (0 or missing).
+  const hasValidCache = holding.lastNetValue != null && holding.lastNetValue > 0;
+  const confirmedValue = (hasValidCache ? holding.lastNetValue : info.netValue) || 0;
   const marketValue = holding.shares * confirmedValue;
   const totalProfit = marketValue - totalCost;
   const totalProfitRate = totalCost > 0 ? totalProfit / totalCost : 0;
