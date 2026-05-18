@@ -7,6 +7,7 @@ import GlobalTransactions from './components/GlobalTransactions';
 import EmptyState from './components/EmptyState';
 import ImageImport from './components/ImageImport';
 import AccountManager from './components/AccountManager';
+import MarketIndexBar from './components/MarketIndexBar';
 import { useFundData } from './hooks/useFundData';
 import {
   loadAccountsMeta,
@@ -294,6 +295,8 @@ function App() {
           </div>
         </div>
       </header>
+
+      <MarketIndexBar />
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* Add fund / Image import */}
